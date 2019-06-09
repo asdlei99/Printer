@@ -1,0 +1,241 @@
+#include <print/PrinterManage.h>
+#include <log/Log.h>
+#include <algorithm>
+
+PrinterManage *PrinterManage::printerManage = NULL;
+
+PrinterManage::PrinterManage()
+{
+    defaultPrinter = NULL;
+}
+
+PrinterManage *PrinterManage::getInstance()
+{
+    if(!PrinterManage::printerManage)
+    {
+        PrinterManage::printerManage = new PrinterManage;
+    }
+
+    return PrinterManage::printerManage;
+}
+
+bool PrinterManage::getSupportPrinter(std::vector<std::string> &printerVector)
+{
+    printerVector = Parse::printer;
+
+    return true;
+}
+
+bool PrinterManage::getCurWorkPrinter(std::vector<std::string> &printerVector)
+{
+    printerVector = this->printerNameVector;
+
+    return true;
+}
+
+bool PrinterManage::addPrinter(std::string devName, std::string devPath)
+{
+    Printer *printer = new Printer;
+
+    if(printer->selectPrinter(devName) == false)
+    {
+        LOG_ERROR("Can't support %s.\n", devName.c_str());
+        delete printer;
+        return false;
+    }
+
+    printer->setDevPath(devPath);
+
+    printerNameVector.push_back(devName);
+    printerVector.push_back(printer);
+
+    return true;
+}
+
+bool PrinterManage::delPrinter(std::string devName)
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getDevName() == devName)
+        {
+            printerVector.erase(it);
+            delete *it;
+            
+            std::vector<std::string>::iterator it1 = find(printerNameVector.begin(), printerNameVector.end(), devName);
+            if(it1 != printerNameVector.end())
+                printerNameVector.erase(it1);
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+bool PrinterManage::printerStartWork(std::string devName)
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getDevName() == devName)
+        {
+            (*it)->startWork();
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool PrinterManage::printerStopWork(std::string devName)
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getDevName() == devName)
+        {
+            (*it)->stopWork();
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool PrinterManage::setDefaultPrinter(std::string devName)
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getDevName() == devName)
+        {
+            defaultDevName = devName;
+            defaultPrinter = *it;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool PrinterManage::printerInit(std::string devName)
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getDevName() == devName)
+        {
+            return (*it)->printerInit();
+        }
+    }
+
+    return false;
+}
+
+bool PrinterManage::printerExit(std::string devName)
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getDevName() == devName)
+        {
+            return (*it)->printerExit();
+        }
+    }
+
+    return true;
+}
+
+bool PrinterManage::addTask(Printer::PrintTask &printTask)
+{
+    if(!defaultPrinter)
+    {
+        LOG_WARNING("Not set default printer.\n");
+        return false;
+    }
+
+    return defaultPrinter->addTask(printTask);
+}
+
+bool PrinterManage::delTask(Printer::PrintTask &printTask)
+{
+    if(!defaultPrinter)
+    {
+        LOG_WARNING("Not set default printer.\n");
+        return false;
+    }
+
+    return defaultPrinter->deleteTask(printTask);
+}
+
+bool PrinterManage::addTask(std::string &devName, Printer::PrintTask &printTask)
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getDevName() == devName)
+        {
+            return (*it)->addTask(printTask);
+        }
+    }
+
+    return false;
+}
+
+bool PrinterManage::delTask(std::string &devName, Printer::PrintTask &printTask)
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getDevName() == devName)
+        {
+            return (*it)->deleteTask(printTask);
+        }
+    }
+
+    return false;
+}
+
+bool PrinterManage::delTask(std::string &devName, int taskSign)
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getDevName() == devName)
+        {
+            return (*it)->deleteTask(taskSign);
+        }
+    }
+
+    return false;
+}
+
+bool PrinterManage::registerCallBack(std::string devName, CallBack *callBack)
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getDevName() == devName)
+        {
+            return (*it)->registerCallBack(callBack);
+        }
+    }
+
+    return false;
+}
+
+bool PrinterManage::unregisterCallBack(std::string devName, CallBack *callBack)
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getDevName() == devName)
+        {
+            return (*it)->unregisterCallBack(callBack);
+        }
+    }
+
+    return false;
+}
+
+bool PrinterManage::isCanPrint()
+{
+    for(std::vector<Printer *>::iterator it = printerVector.begin(); it != printerVector.end(); it++)
+    {
+        if((*it)->getTaskNum() < 100)
+            return true;
+    }
+
+    return false;
+}
